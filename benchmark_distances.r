@@ -1,6 +1,5 @@
+source("permutation.testing.R")
 require(doParallel)
-require(missForest)
-require(utils)
 require(gtools)
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -67,26 +66,31 @@ execute_os_commands()
 
 print_header("Start")
 
-print_header("imputation")
+print_header("run timings")
 
-m <- random_matrix(1000,1000)
+compute_cor <- function(data) {
+  ref_row <- data[1,]
+  for(i in 2:nrow(data)) {
+    result <- permutation.test(ref_row, data[i,], FUN = cor, n = 100, return.samples = FALSE)
+  }
+}
 
 if(dryrun) {
-    benchmark_imputation <- function(data, cores) {
+    benchmark <- function(data, cores) {
         return(list("time_user" = 0,
                     "time_system" = 0,
                     "time_total" = 0,
                     "n_cores" = n_cores)) }
     } else {
-        benchmark_imputation <- function(data, cores) {
+        benchmark <- function(data, cores) {
             if(cores == 1) {
                 t <- system.time(
-                    m_imputed <- missForest(data, parallelize = "no"))
+                    compute_cor(data))
                 n_cores <- 1
             } else {
                 registerDoParallel(cores = cores)
                 t <- system.time(
-                    m_imputed <- missForest(data, parallelize = "variables"))
+                    compute_cor(data))
                 n_cores <- getDoParWorkers()
             }
             return(list("time_user" = t[[1]],
@@ -102,39 +106,43 @@ n_cores <- c(2^(0:floor(log2(available_cores))),
             available_cores-1)
 cat("n_cores:", n_cores, "\n")
 
-timings_imputation <- expand.grid(
-  size = c(10,50,100,200,300,400,500),
+timings <- expand.grid(
+  n_rows = c(10,25,50,75,100),
+  n_cols = c(10,25,50,75,100),
   n_cores = n_cores,
   drop_fraction = c(0.05, 0.1, 0.2),
+  NA_count = NA,
+  time_user = NA,
+  time_system = NA,
+  time_total = NA,
   replicate = c(1),
   arch = R.version["arch"],
   os = R.version["os"],
   host = Sys.info()["nodename"]
 )
-col_names <- c("n_rows", "n_cols", "NA_count", "time_user", "time_system", "time_total", "n_cores", "os", "arch", "host")
-for(c in col_names) if(! c %in% names(timings_imputation)) timings_imputation[c] <- NA
-
+timings$elements <- timings$n_rows * timings$n_cols
 # don't use more cores than there are rows in the table:
-timings_imputation <- timings_imputation[timings_imputation$n_cores < timings_imputation$size,]
+timings <- timings[timings$n_cores < timings$n_rows,]
 # skip the really slow trials:
-timings_imputation <- timings_imputation[!((timings_imputation$n_cores < 4) & (timings_imputation$size > 200)),]
+timings <- timings[!((timings$n_cores < 4) & (timings$elements > 10000)),]
 
-print(timings_imputation)
+print(timings)
 
-for(i in 1:nrow(timings_imputation)) {
-  s <- timings_imputation[i, "size"]
-  timings_imputation[i, "n_rows"] <- s
-  timings_imputation[i, "n_cols"] <- s
-  data <- make_missing(m[1:s,1:s], timings_imputation[i,"drop_fraction"])
-  timings_imputation[i, "NA_count"] <- sum(is.na(data))
-  t <- benchmark_imputation(data, timings_imputation[i, "n_cores"])
-  timings_imputation[i, "time_system"] <- t$time_system
-  timings_imputation[i, "time_user"] <- t$time_user
-  timings_imputation[i, "time_total"] <- t$time_total
-  print(timings_imputation[i,], width = 150)
+m <- random_matrix(1000,1000)
+
+for(i in 1:nrow(timings)) {
+  r <- timings[i, "n_rows"]
+  c <- timings[i, "n_cols"]
+  data <- make_missing(m[1:r,1:c], timings[i,"drop_fraction"])
+  timings[i, "NA_count"] <- sum(is.na(data))
+  t <- benchmark(data, timings[i, "n_cores"])
+  timings[i, "time_system"] <- t$time_system
+  timings[i, "time_user"] <- t$time_user
+  timings[i, "time_total"] <- t$time_total
+  print(timings[i,], width = 150)
 }
 
-print_header("write imputation timings")
-saveRDS(timings_imputation, "timings_imputation.rds")
+print_header("write timings")
+saveRDS(timings, "timings.rds")
 
 print_header("finish")
