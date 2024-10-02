@@ -109,7 +109,7 @@ if(dryrun) {
         }
     }
 
-header("test %dopar%")
+print_header("test %dopar%")
 times <- expand.grid(
   cores = 4,
   tasks = c(1:6, 9),
@@ -186,23 +186,25 @@ timings <- timings[timings$n_cores < timings$n_rows,]
 
 m <- random_matrix(1000,1000)
 total_rows <- nrow(timings)
-pb <- progress_bar$new(total = total_rows)
+pb <- progress_bar$new(
+  total = total_rows,
+  format = ":rows x :cols (:cores cores) [:bar]")
 for(i in 1:total_rows) {
   r <- timings[i, "n_rows"]
   c <- timings[i, "n_cols"]
+  n_cores <- timings[i, "n_cores"]
+  n_perm <- timings[i, "n_perm"]
+  pb$tick(tokens = list(rows = r, cols = c, cores = n_cores))
   data <- make_missing(m[1:r,1:c], timings[i,"drop_fraction"])
   timings[i, "NA_count"] <- sum(is.na(data))
-  t <- benchmark(data, 
-                 timings[i, "n_cores"],
-                 timings[i, "n_perm"])
+  t <- benchmark(data, n_cores, n_perm)
   timings[i, "time_system"] <- t$time_system
   timings[i, "time_user"] <- t$time_user
   timings[i, "time_total"] <- t$time_total
   # print(timings[i,], width = 150)
-  pb$tick()
 }
 
 print_header("write timings")
-saveRDS(timings, "timings.rds")
+saveRDS(timings, "distances_timings.rds")
 
 print_header("finish")
