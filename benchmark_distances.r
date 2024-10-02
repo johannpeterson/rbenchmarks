@@ -1,7 +1,26 @@
-source("permutation.testing.R")
 require(doParallel)
 require(gtools)
 require(progress)
+
+# Set the working directory to the script's directory:
+
+getScriptPath <- function(){
+    # https://stackoverflow.com/questions/3452086/getting-path-of-an-r-script
+    cmd.args <- commandArgs()
+    m <- regexpr("(?<=^--file=).+", cmd.args, perl=TRUE)
+    script.dir <- dirname(regmatches(cmd.args, m))
+    if(length(script.dir) == 0) stop("can't determine script dir: please call the script with Rscript")
+    if(length(script.dir) > 1) stop("can't determine script dir: more than one '--file' argument detected")
+    return(script.dir)
+}
+
+source_dir <- getScriptPath()
+cat("script directory:", source_dir, "\n")
+setwd(source_dir)
+
+source("permutation.testing.r")
+
+# Determine if we're really running the computations:
 
 args <- commandArgs(trailingOnly = TRUE)
 if("dryrun" %in% args) {
@@ -10,6 +29,8 @@ if("dryrun" %in% args) {
 } else {
     dryrun <- FALSE
 }
+
+# Helper functions
 
 print_header <- function(title) cat("\n", title, "\n", date(), "\n", rep("-",40), "\n", sep='')
 
@@ -32,6 +53,10 @@ make_missing <- function(data, prob) {
   return(new_data)
 }
 
+# Get info on this machine
+
+print_header("Machine Info")
+
 commands_list <- list(
   "Darwin" = list(
     "cpu info:" = "sysctl -a | grep machdep.cpu",
@@ -43,7 +68,6 @@ commands_list <- list(
   )
 )
 
-print_header("Machine Info")
 execute_os_commands <- function() {
   os <- Sys.info()["sysname"]  # Detect the operating system
   commands <- commands_list[[os]]  # Look up the commands for the detected OS
@@ -68,8 +92,7 @@ execute_os_commands()
 
 print_header("Start")
 
-print_header("run timings")
-
+# Not using this function
 compute_cor <- function(data) {
   ref_row <- data[1,]
   results <- foreach(i = 1:nrow(data), .combine = 'c') %dopar% {
@@ -77,6 +100,9 @@ compute_cor <- function(data) {
   }
 }
 
+# If dryrun, return times of 0 and do nothing
+# If cores = 1, use %do%, otherwise set up doParallel
+# and use %dopar%
 if(dryrun) {
     benchmark <- function(data, cores, n_perm) {
         return(list("time_user" = 0,
@@ -146,11 +172,11 @@ time_parallel <- system.time(
   correllations <- foreach(r = 1:nrow(m), .combine = 'c') %dopar%
     permutation.test(ref_row, m[r,], FUN = cor, n = n_perm, return.samples = FALSE)$obs
 )
-cat("cores:", n_cores, 
+cat("cores:", n_cores,
     "permutations:", n_perm,
     "matrix size:", m_size, "x", m_size,
-    "serial (%do%):", time_serial[3], 
-    "parallel (%dopar%):", time_parallel[3], 
+    "serial (%do%):", time_serial[3],
+    "parallel (%dopar%):", time_parallel[3],
     "\n")
 
 print_header("run benchmarks")
@@ -162,8 +188,8 @@ n_cores <- c(2^(0:floor(log2(available_cores))),
 cat("n_cores:", n_cores, "\n")
 
 timings <- expand.grid(
-  n_rows = c(25,50,75,100,200),
-  n_cols = c(25,50,75,100,200),
+  n_rows = c(25,50,75,100,200,500),
+  n_cols = c(25,50,75,100,200,500),
   n_cores = n_cores,
   drop_fraction = c(0),
   n_perm = 10000,
@@ -180,7 +206,7 @@ timings$elements <- timings$n_rows * timings$n_cols
 # don't use more cores than there are rows in the table:
 timings <- timings[timings$n_cores < timings$n_rows,]
 # skip the really slow trials:
-# timings <- timings[!((timings$n_cores < 4) & (timings$elements > 10000)),]
+timings <- timings[!((timings$n_cores < 4) & (timings$elements > 10000)),]
 
 # print(timings)
 
