@@ -27,9 +27,6 @@ permutation.test <- function(x, y, FUN, n = 999, return.samples = TRUE) {
   )
 }
 
-x <- rnorm(1000)
-y <- rnorm(1000)
-
 plot.permutation_result <- function(obj, ...) {
   # https://stackoverflow.com/questions/29289046/r-ecdf-over-histogram
   if(is.null(obj$samples)) stop("No samples to plot in permutation_result object.")
