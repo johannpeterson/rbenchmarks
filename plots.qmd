@@ -1,6 +1,11 @@
 ---
 title: "Benchmark Plots"
-format: html
+format: 
+  html:
+    self-contained: true
+    embed-resources: true
+  pdf:
+    toc: false
 editor: visual
 ---
 
