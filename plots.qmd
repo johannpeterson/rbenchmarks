@@ -34,13 +34,13 @@ ggplot(times_imputation,
 ```{r}
 ggplot(times_imputation, 
        aes(x=elements, y=time_total*n_cores, colour=arch)) +
-  geom_point()
+  geom_jitter(width = 5000)
 ```
 
 ```{r}
 ggplot(times_imputation, 
        aes(x=n_cores, y=elements/time_total, colour=arch)) +
-  geom_point()
+  geom_point(position="jitter")
 ```
 
 ```{r}
@@ -48,7 +48,7 @@ ggplot(times_imputation,
        aes(x=n_cores, 
            y=elements/time_total, 
            colour=NA_count/elements)) + 
-  geom_point()
+  geom_jitter()
 ```
 
 ```{r}
@@ -56,9 +56,7 @@ ggplot(times_imputation[times_imputation$n_cores==8,],
        aes(x=arch, y=elements/time_total)) +
   geom_boxplot() + 
   ggtitle("8 Cores")
-```
 
-```{r}
 ggplot(times_imputation[times_imputation$n_cores==4,], 
        aes(x=arch, y=elements/time_total)) + 
   geom_boxplot() + 
@@ -92,11 +90,21 @@ ggpaired(times_imputation[times_imputation$n_cores==8,],
   xlab("CPU architecture") + 
   ylab("elements/sec")
 ```
-
+# Plot Distance Times
 ```{r}
 ggplot(times_distance, aes(x=elements, y=time_total, color=n_cores)) + geom_point()
-ggplot(times_distance, aes(y=elements/time_total, x=n_cores)) + geom_point()
-ggplot(times_distance, aes(y=elements/time_total, x=n_cores, color=elements)) + geom_point()
-ggplot(times_distance, aes(y=elements/time_total, x=n_cores, color=n_rows)) + geom_point()
-ggplot(times_distance, aes(y=elements/time_total, x=n_cores, color=n_cols)) + geom_point()
+```
+
+```{r}
+ggplot(times_distance, aes(y=elements/time_total, x=n_cores, colour=arch)) + 
+  geom_jitter()
+```
+
+```{r}
+ggplot(times_distance, aes(y=elements/time_total, x=n_cores, color=elements)) + 
+  geom_jitter()
+ggplot(times_distance, aes(y=elements/time_total, x=n_cores, color=n_rows)) + 
+  geom_jitter()
+ggplot(times_distance, aes(y=elements/time_total, x=n_cores, color=n_cols)) + 
+  geom_jitter()
 ```
